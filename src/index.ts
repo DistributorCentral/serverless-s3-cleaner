@@ -3,6 +3,7 @@ import {
   S3Client,
   HeadBucketCommand,
   DeleteObjectsCommand,
+  ListObjectsV2Command,
   ListObjectVersionsCommand,
   ObjectIdentifier,
 } from '@aws-sdk/client-s3';
@@ -18,6 +19,7 @@ interface ListParams {
   Bucket: string;
   VersionIdMarker?: string;
   KeyMarker?: string;
+  ContinuationToken?: string;
 }
 
 export default class ServerlessS3Cleaner implements Plugin {
@@ -158,24 +160,47 @@ export default class ServerlessS3Cleaner implements Plugin {
     const listParams: ListParams = { Bucket: bucketName };
     let bucketKeys: ObjectIdentifierList = [];
 
-    while (true) {
-      const listResult = await this.s3Client.send(new ListObjectVersionsCommand(listParams));
-      if (listResult.Versions) {
-        bucketKeys = bucketKeys.concat(
-          listResult.Versions.map((item) => ({ Key: item.Key!, VersionId: item.VersionId! })),
-        );
-      }
-      if (listResult.DeleteMarkers) {
-        bucketKeys = bucketKeys.concat(
-          listResult.DeleteMarkers.map((item) => ({ Key: item.Key!, VersionId: item.VersionId! })),
-        );
-      }
+    try {
+      while (true) {
+        const listResult = await this.s3Client.send(new ListObjectVersionsCommand(listParams));
+        if (listResult.Versions) {
+          bucketKeys = bucketKeys.concat(
+            listResult.Versions.map((item) => ({ Key: item.Key!, VersionId: item.VersionId! })),
+          );
+        }
+        if (listResult.DeleteMarkers) {
+          bucketKeys = bucketKeys.concat(
+            listResult.DeleteMarkers.map((item) => ({ Key: item.Key!, VersionId: item.VersionId! })),
+          );
+        }
 
-      if (!listResult.IsTruncated) {
-        break;
+        if (!listResult.IsTruncated) {
+          break;
+        }
+        listParams.VersionIdMarker = listResult.NextVersionIdMarker;
+        listParams.KeyMarker = listResult.NextKeyMarker;
       }
-      listParams.VersionIdMarker = listResult.NextVersionIdMarker;
-      listParams.KeyMarker = listResult.NextKeyMarker;
+    } catch (error) {
+      const err = error as Error;
+      if (err.name === 'NotImplemented' && err.message.includes('This bucket does not support Object Versioning')) {
+        // Fall back to ListObjectsV2Command if versioning is not supported
+        delete listParams.VersionIdMarker; // Clear VersionIdMarker and KeyMarker for ListObjectsV2
+        delete listParams.KeyMarker;
+        while (true) {
+          const listResult = await this.s3Client.send(new ListObjectsV2Command(listParams));
+          if (listResult.Contents) {
+            bucketKeys = bucketKeys.concat(listResult.Contents.map((item) => ({ Key: item.Key!, VersionId: 'null' })));
+          }
+
+          if (!listResult.IsTruncated) {
+            break;
+          }
+
+          listParams.ContinuationToken = listResult.NextContinuationToken;
+        }
+      } else {
+        throw error; // Rethrow if it's a different error
+      }
     }
 
     return bucketKeys;
