@@ -6,4 +6,3 @@ node_modules/
 out-tsc/
 .nyc_output/
 coverage/
-dist/

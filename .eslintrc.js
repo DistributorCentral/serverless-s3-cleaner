@@ -7,14 +7,8 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 2018,
   },
-  plugins: [
-    '@typescript-eslint',
-  ],
-  extends: [
-    'airbnb-base',
-    'plugin:@typescript-eslint/eslint-recommended',
-    'plugin:@typescript-eslint/recommended'
-  ],
+  plugins: ['@typescript-eslint'],
+  extends: ['airbnb-base', 'plugin:@typescript-eslint/eslint-recommended', 'plugin:@typescript-eslint/recommended'],
   rules: {
     // Typescript's unused variable checking is already enabled in tsconfig
     '@typescript-eslint/no-unused-vars': 'off',
@@ -22,19 +16,23 @@ module.exports = {
 
     // Controlled via .gitattributes
     'linebreak-style': 'off',
+    'implicit-arrow-linebreak': 'off',
 
     // too strict
     'lines-between-class-members': 'off',
     'comma-dangle': 'off',
     'padded-blocks': 'off',
-    'max-len': ['error', {
-      code: 160,
-      ignoreUrls: true
-    }],
+    'max-len': [
+      'error',
+      {
+        code: 160,
+        ignoreUrls: true,
+      },
+    ],
     'no-constant-condition': 'off',
     'no-await-in-loop': 'off',
     'arrow-parens': 'off',
-    'function-paren-newline': ['error', 'consistent'],
+    'function-paren-newline': 'off',
     'no-useless-constructor': 'off',
     'import/extensions': 'off',
     'import/no-unresolved': 'off',
@@ -48,9 +46,12 @@ module.exports = {
     // serverless chokes otherwise
     'import/no-import-module-exports': 'off',
 
-    '@typescript-eslint/explicit-function-return-type': ['error', {
-      allowExpressions: true,
-      allowTypedFunctionExpressions: true
-    }]
-  }
+    '@typescript-eslint/explicit-function-return-type': [
+      'error',
+      {
+        allowExpressions: true,
+        allowTypedFunctionExpressions: true,
+      },
+    ],
+  },
 };

@@ -14,6 +14,12 @@ import Aws from 'serverless/plugins/aws/provider/awsProvider';
 
 type ObjectIdentifierList = ObjectIdentifier[];
 
+interface ListParams {
+  Bucket: string;
+  VersionIdMarker?: string;
+  KeyMarker?: string;
+}
+
 export default class ServerlessS3Cleaner implements Plugin {
   public commands: Plugin.Commands;
   public hooks: Plugin.Hooks;
@@ -149,7 +155,7 @@ export default class ServerlessS3Cleaner implements Plugin {
   }
 
   private async listBucketKeys(bucketName: string): Promise<ObjectIdentifierList> {
-    const listParams = { Bucket: bucketName };
+    const listParams: ListParams = { Bucket: bucketName };
     let bucketKeys: ObjectIdentifierList = [];
 
     while (true) {
