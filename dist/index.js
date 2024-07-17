@@ -121,19 +121,42 @@ class ServerlessS3Cleaner {
     async listBucketKeys(bucketName) {
         const listParams = { Bucket: bucketName };
         let bucketKeys = [];
-        while (true) {
-            const listResult = await this.s3Client.send(new client_s3_1.ListObjectVersionsCommand(listParams));
-            if (listResult.Versions) {
-                bucketKeys = bucketKeys.concat(listResult.Versions.map((item) => ({ Key: item.Key, VersionId: item.VersionId })));
+        try {
+            while (true) {
+                const listResult = await this.s3Client.send(new client_s3_1.ListObjectVersionsCommand(listParams));
+                if (listResult.Versions) {
+                    bucketKeys = bucketKeys.concat(listResult.Versions.map((item) => ({ Key: item.Key, VersionId: item.VersionId })));
+                }
+                if (listResult.DeleteMarkers) {
+                    bucketKeys = bucketKeys.concat(listResult.DeleteMarkers.map((item) => ({ Key: item.Key, VersionId: item.VersionId })));
+                }
+                if (!listResult.IsTruncated) {
+                    break;
+                }
+                listParams.VersionIdMarker = listResult.NextVersionIdMarker;
+                listParams.KeyMarker = listResult.NextKeyMarker;
             }
-            if (listResult.DeleteMarkers) {
-                bucketKeys = bucketKeys.concat(listResult.DeleteMarkers.map((item) => ({ Key: item.Key, VersionId: item.VersionId })));
+        }
+        catch (error) {
+            const err = error;
+            if (err.name === 'NotImplemented' && err.message.includes('This bucket does not support Object Versioning')) {
+                // Fall back to ListObjectsV2Command if versioning is not supported
+                delete listParams.VersionIdMarker; // Clear VersionIdMarker and KeyMarker for ListObjectsV2
+                delete listParams.KeyMarker;
+                while (true) {
+                    const listResult = await this.s3Client.send(new client_s3_1.ListObjectsV2Command(listParams));
+                    if (listResult.Contents) {
+                        bucketKeys = bucketKeys.concat(listResult.Contents.map((item) => ({ Key: item.Key, VersionId: 'null' })));
+                    }
+                    if (!listResult.IsTruncated) {
+                        break;
+                    }
+                    listParams.ContinuationToken = listResult.NextContinuationToken;
+                }
             }
-            if (!listResult.IsTruncated) {
-                break;
+            else {
+                throw error; // Rethrow if it's a different error
             }
-            listParams.VersionIdMarker = listResult.NextVersionIdMarker;
-            listParams.KeyMarker = listResult.NextKeyMarker;
         }
         return bucketKeys;
     }
