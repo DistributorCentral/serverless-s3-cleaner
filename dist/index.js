@@ -146,7 +146,7 @@ class ServerlessS3Cleaner {
                 while (true) {
                     const listResult = await this.s3Client.send(new client_s3_1.ListObjectsV2Command(listParams));
                     if (listResult.Contents) {
-                        bucketKeys = bucketKeys.concat(listResult.Contents.map((item) => ({ Key: item.Key, VersionId: 'null' })));
+                        bucketKeys = bucketKeys.concat(listResult.Contents.map((item) => ({ Key: item.Key })));
                     }
                     if (!listResult.IsTruncated) {
                         break;
